@@ -1,6 +1,8 @@
 name: Google Flights Price Monitor
 
 on:
+  push:
+    branches: [ main ]
   schedule:
     # Ejecutar cada 2 horas
     - cron: '0 */2 * * *'
