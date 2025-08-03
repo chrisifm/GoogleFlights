@@ -225,7 +225,9 @@ const BRAZIL_CONFIG = {
   // URLs de Google Flights a comprobar
   urls: [
     'https://www.google.com/travel/flights/search?tfs=CBwQAhooEgoyMDI1LTA5LTA2ahEIAhINL2cvMTFiYzZ4bHBwZHIHCAESA01DWkABSAFwAYIBCwj___________8BmAEC&curr=MXN',
-    'https://www.google.com/travel/flights/search?tfs=CBwQAhooEgoyMDI1LTA5LTI3ahEIAhINL2cvMTFiYzZ4bHBwZHIHCAESA01DWkABSAFwAYIBCwj___________8BmAEC&curr=MXN'
+    'https://www.google.com/travel/flights/search?tfs=CBwQAhooEgoyMDI1LTA5LTI3ahEIAhINL2cvMTFiYzZ4bHBwZHIHCAESA01DWkABSAFwAYIBCwj___________8BmAEC&curr=MXN',
+    'https://www.google.com/travel/flights/search?tfs=CBwQAhooEgoyMDI1LTA5LTA2ahEIAhINL2cvMTFiYzZ4bHBwZHIHCAESA0pQQUABSAFwAYIBCwj___________8BmAEC&curr=MXN',
+    'https://www.google.com/travel/flights/search?tfs=CBwQAhooEgoyMDI1LTA5LTIwahEIAhINL2cvMTFiYzZ4bHBwZHIHCAESA0pQQUABSAFwAYIBCwj___________8BmAEC&curr=MXN'
   ],
   
   // Viewport máximo
@@ -446,7 +448,16 @@ console.log('Iniciando crawler con configuración de Brasil...');
 console.log(`🖥️  Modo: ${isHeadless ? 'Headless (sin mostrar navegador)' : 'Con interfaz gráfica'}`);
 console.log(`📋 URLs a procesar: ${BRAZIL_CONFIG.urls.length}`);
 BRAZIL_CONFIG.urls.forEach((url, index) => {
-    console.log(`   ${index + 1}. ${url.includes('2025-09-06') ? 'Sep 6' : 'Sep 27'}: ${url.substring(0, 100)}...`);
+    let destination = 'Unknown';
+    if (url.includes('MCZ')) destination = 'Maceió';
+    if (url.includes('JPA')) destination = 'João Pessoa';
+    
+    let date = 'Unknown';
+    if (url.includes('2025-09-06')) date = 'Sep 6';
+    if (url.includes('2025-09-27')) date = 'Sep 27';
+    if (url.includes('2025-09-20')) date = 'Sep 20';
+    
+    console.log(`   ${index + 1}. ${destination} - ${date}: ${url.substring(0, 100)}...`);
 });
 
 await crawler.run(BRAZIL_CONFIG.urls);
