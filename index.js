@@ -5,6 +5,9 @@ import { createClient } from '@supabase/supabase-js';
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
+// Configuración del modo navegador
+const isHeadless = true; // true = ejecutar en consola sin mostrar navegador, false = mostrar navegador
+
 if (!SUPABASE_URL || !SUPABASE_KEY) {
     console.error('❌ Error: SUPABASE_URL y SUPABASE_KEY son requeridas como variables de entorno');
     console.error('   Crea un archivo .env con estas variables o configúralas en tu sistema');
@@ -12,6 +15,27 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
 }
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// Verificar conexión a Supabase
+async function testSupabaseConnection() {
+    try {
+        const { data, error } = await supabase
+            .from('flights')
+            .select('count', { count: 'exact', head: true });
+        
+        if (error) {
+            console.error('❌ Error al conectar con Supabase:', error.message);
+            return false;
+        }
+        
+        console.log('✅ Conexión exitosa con Supabase');
+        console.log(`📊 Total de registros en tabla flights: ${data || 0}`);
+        return true;
+    } catch (error) {
+        console.error('❌ Error de conexión con Supabase:', error.message);
+        return false;
+    }
+}
 
 // Función para parsear precio y extraer currency
 function parsePrice(priceString) {
@@ -29,7 +53,7 @@ function parsePrice(priceString) {
 }
 
 // Función para enviar alerta de precio bajo
-async function sendPriceAlert(from, to, currentPrice, currency) {
+async function sendPriceAlert(from, to, currentPrice, currency, flightDate) {
     try {
         const response = await fetch('https://api.pushcut.io/eOU0kCDr2y95dXanO0nwk/notifications/Google%20Flights', {
             method: 'POST',
@@ -37,7 +61,7 @@ async function sendPriceAlert(from, to, currentPrice, currency) {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                text: `¡Bajo de precio! Nuevo precio más bajo: ${currency}$${currentPrice}`,
+                text: `¡Bajo de precio! Nuevo precio más bajo: ${currency}$${currentPrice} para ${flightDate}`,
                 title: `Vuelo ${from}/${to}`
             })
         });
@@ -53,14 +77,16 @@ async function sendPriceAlert(from, to, currentPrice, currency) {
 }
 
 // Función para verificar si es el precio más bajo y enviar alerta
-async function checkLowestPrice(from, to, currentPrice, currency) {
+async function checkLowestPrice(from, to, currentPrice, currency, currentLink, flightDate) {
     try {
-        // Obtener todos los vuelos con el mismo origen y destino
+        // Obtener todos los vuelos con el mismo origen, destino, link y fecha
         const { data: flights, error } = await supabase
             .from('flights')
-            .select('price, currency')
+            .select('price, currency, link, flight_date')
             .eq('from', from)
             .eq('to', to)
+            .eq('link', currentLink)
+            .eq('flight_date', flightDate)
             .order('price', { ascending: true });
 
         if (error) {
@@ -68,7 +94,7 @@ async function checkLowestPrice(from, to, currentPrice, currency) {
             return false;
         }
 
-        console.log(`📊 Encontrados ${flights.length} vuelos históricos para ${from} -> ${to}`);
+        console.log(`📊 Encontrados ${flights.length} vuelos históricos para ${from} -> ${to} (${flightDate})`);
         
         if (flights.length > 1) { // Necesitamos al menos 2 registros para comparar
             const lowestPrice = flights[0].price; // El más bajo
@@ -77,6 +103,8 @@ async function checkLowestPrice(from, to, currentPrice, currency) {
             console.log(`💰 Precio actual: ${currency}$${currentPrice}`);
             console.log(`📉 Precio más bajo histórico: ${flights[0].currency}$${lowestPrice}`);
             console.log(`📈 Precio más alto histórico: ${currency}$${highestPrice}`);
+            console.log(`📅 Fecha del vuelo: ${flightDate}`);
+            console.log(`🔗 Comparando solo vuelos de la misma fecha/ruta: ${currentLink.substring(0, 50)}...`);
             
             // Verificar si es el nuevo precio más bajo
             const isLowestPrice = currentPrice <= lowestPrice;
@@ -90,7 +118,7 @@ async function checkLowestPrice(from, to, currentPrice, currency) {
             if (isLowestPrice && significantSavings) {
                 console.log('🎉 ¡Nuevo precio más bajo detectado con ahorro significativo!');
                 console.log(`🚨 Enviando alerta: Es el más bajo Y ahorra +$500 MX vs el más caro`);
-                await sendPriceAlert(from, to, currentPrice, currency);
+                await sendPriceAlert(from, to, currentPrice, currency, flightDate);
                 return true;
             } else if (isLowestPrice) {
                 console.log('📝 Es el precio más bajo, pero el ahorro vs el más caro es menor a $500 MX');
@@ -98,7 +126,7 @@ async function checkLowestPrice(from, to, currentPrice, currency) {
                 console.log('📝 No es el precio más bajo histórico');
             }
         } else {
-            console.log('📈 Primer registro para esta ruta - no hay comparación histórica');
+            console.log('📈 Primer registro para esta fecha/ruta específica - no hay comparación histórica');
         }
         
         return false;
@@ -109,14 +137,16 @@ async function checkLowestPrice(from, to, currentPrice, currency) {
 }
 
 // Función para verificar si el registro ya existe
-async function checkDuplicateRecord(from, to, price) {
+async function checkDuplicateRecord(from, to, price, link, flightDate) {
     try {
         const { data: existingFlights, error } = await supabase
             .from('flights')
-            .select('id, price, from, to')
+            .select('id, price, from, to, link, flight_date')
             .eq('from', from)
             .eq('to', to)
-            .eq('price', price);
+            .eq('price', price)
+            .eq('link', link)
+            .eq('flight_date', flightDate);
 
         if (error) {
             console.error('Error al verificar duplicados:', error);
@@ -131,16 +161,16 @@ async function checkDuplicateRecord(from, to, price) {
 }
 
 // Función para insertar vuelo en Supabase
-async function insertFlight(from, to, priceString, link) {
+async function insertFlight(from, to, priceString, link, flightDate = null) {
     try {
         const { currency, price } = parsePrice(priceString);
         
-        // Verificar si ya existe un registro con los mismos from, to, price
-        const isDuplicate = await checkDuplicateRecord(from, to, price);
+        // Verificar si ya existe un registro con los mismos from, to, price, link, flight_date
+        const isDuplicate = await checkDuplicateRecord(from, to, price, link, flightDate);
         
         if (isDuplicate) {
             console.log('⚠️  Registro duplicado encontrado. No se insertará.');
-            console.log(`   From: ${from}, To: ${to}, Price: ${currency}$${price}`);
+            console.log(`   From: ${from}, To: ${to}, Price: ${currency}$${price}, Date: ${flightDate}, Link: ${link.substring(0, 50)}...`);
             console.log('📝 Ya existe un registro igual en la base de datos');
             return false;
         }
@@ -151,7 +181,8 @@ async function insertFlight(from, to, priceString, link) {
             to: to,
             price: price,
             currency: currency,
-            link: link
+            link: link,
+            flight_date: flightDate
         };
 
         // Mostrar payload antes de insertar
@@ -170,7 +201,7 @@ async function insertFlight(from, to, priceString, link) {
         console.log('✅ Vuelo insertado exitosamente en Supabase');
         
         // Verificar si es el precio más bajo después de insertar
-        await checkLowestPrice(from, to, price, currency);
+        await checkLowestPrice(from, to, price, currency, link, flightDate);
         
         return true;
     } catch (error) {
@@ -191,8 +222,11 @@ const BRAZIL_CONFIG = {
   // Configuración de idioma y región
   locale: 'pt-BR',
   
-  // URL de Google Flights
-  url: 'https://www.google.com/travel/flights/search?tfs=CBwQAhooEgoyMDI1LTA5LTA2ahEIAhINL2cvMTFiYzZ4bHBwZHIHCAESA01DWkABSAFwAYIBCwj___________8BmAEC&curr=MXN',
+  // URLs de Google Flights a comprobar
+  urls: [
+    'https://www.google.com/travel/flights/search?tfs=CBwQAhooEgoyMDI1LTA5LTA2ahEIAhINL2cvMTFiYzZ4bHBwZHIHCAESA01DWkABSAFwAYIBCwj___________8BmAEC&curr=MXN',
+    'https://www.google.com/travel/flights/search?tfs=CBwQAhooEgoyMDI1LTA5LTI3ahEIAhINL2cvMTFiYzZ4bHBwZHIHCAESA01DWkABSAFwAYIBCwj___________8BmAEC&curr=MXN'
+  ],
   
   // Viewport máximo
   viewport: {
@@ -211,6 +245,18 @@ const REAL_USER_AGENTS = [
 
 const crawler = new PlaywrightCrawler({
     async requestHandler({ request, page, enqueueLinks, pushData }) {
+        console.log(`\n🌐 Procesando URL: ${request.loadedUrl}`);
+        console.log('='.repeat(80));
+        
+        // Verificar conexión a Supabase para cada URL
+        console.log('🔗 Verificando conexión a Supabase...');
+        const isConnected = await testSupabaseConnection();
+        
+        if (!isConnected) {
+            console.error('❌ No se pudo conectar a Supabase para esta URL.');
+            return; // Continuar con la siguiente URL en lugar de terminar
+        }
+        
         console.log('Configurando navegador con configuración de Brasil...');
         
         // Configurar viewport
@@ -299,6 +345,7 @@ const crawler = new PlaywrightCrawler({
         let flightPrice = 'No encontrado';
         let fromCity = 'Florianópolis';
         let toCity = 'Maceió';
+        let flightDate = 'No encontrado';
         
         try {
             // Extraer origen y destino desde el título
@@ -306,6 +353,31 @@ const crawler = new PlaywrightCrawler({
             if (titleParts.length >= 2) {
                 fromCity = titleParts[0].trim();
                 toCity = titleParts[1].split(' |')[0].trim();
+            }
+            
+            // Extraer fecha del campo de filtros
+            const dateSelectors = [
+                'input.TP4Lpb.eoY5cb.j0Ppje[aria-label="Departure"]',
+                'input[placeholder="Departure"]',
+                'input.TP4Lpb',
+                '[jsname="yrriRe"]'
+            ];
+            
+            for (const dateSelector of dateSelectors) {
+                try {
+                    const dateValue = await page.$eval(dateSelector, el => el.value || el.textContent);
+                    if (dateValue && dateValue.trim() && dateValue !== 'Departure') {
+                        flightDate = dateValue.trim();
+                        console.log(`📅 Fecha extraída: ${flightDate}`);
+                        break;
+                    }
+                } catch (e) {
+                    // Continuar con el siguiente selector
+                }
+            }
+            
+            if (flightDate === 'No encontrado') {
+                console.log('⚠️  No se pudo extraer la fecha del vuelo');
             }
             
             // Buscar precio usando el patrón MX$ observado
@@ -328,7 +400,7 @@ const crawler = new PlaywrightCrawler({
         
         // Insertar en Supabase si se encontró el precio
         if (flightPrice !== 'No encontrado') {
-            await insertFlight(fromCity, toCity, flightPrice, request.loadedUrl);
+            await insertFlight(fromCity, toCity, flightPrice, request.loadedUrl, flightDate);
         }
         
         await pushData({ 
@@ -340,15 +412,16 @@ const crawler = new PlaywrightCrawler({
             viewport: BRAZIL_CONFIG.viewport,
             flightPrice: flightPrice,
             fromCity: fromCity,
-            toCity: toCity
+            toCity: toCity,
+            flightDate: flightDate
         });
         
-        // Finalizar el proceso sin bucle infinito
-        console.log('Extracción completada. Finalizando...');
-        process.exit(0);
+        // Marcar como completada esta URL
+        console.log('✅ Extracción completada para esta URL.');
+        console.log('='.repeat(80));
     },
-    maxRequestsPerCrawl: 1,
-    headless: false, // Mostrar el navegador
+    maxRequestsPerCrawl: BRAZIL_CONFIG.urls.length,
+    headless: isHeadless, // Controlado por variable isHeadless
     launchContext: {
         launchOptions: {
             args: [
@@ -370,4 +443,14 @@ const crawler = new PlaywrightCrawler({
 });
 
 console.log('Iniciando crawler con configuración de Brasil...');
-await crawler.run([BRAZIL_CONFIG.url]);
+console.log(`🖥️  Modo: ${isHeadless ? 'Headless (sin mostrar navegador)' : 'Con interfaz gráfica'}`);
+console.log(`📋 URLs a procesar: ${BRAZIL_CONFIG.urls.length}`);
+BRAZIL_CONFIG.urls.forEach((url, index) => {
+    console.log(`   ${index + 1}. ${url.includes('2025-09-06') ? 'Sep 6' : 'Sep 27'}: ${url.substring(0, 100)}...`);
+});
+
+await crawler.run(BRAZIL_CONFIG.urls);
+
+console.log('\n🎉 Procesamiento de todas las URLs completado!');
+console.log('🔚 Terminando proceso...');
+process.exit(0);
