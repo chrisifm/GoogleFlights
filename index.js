@@ -226,8 +226,13 @@ const BRAZIL_CONFIG = {
   urls: [
     'https://www.google.com/travel/flights/search?tfs=CBwQAhooEgoyMDI1LTA5LTA2ahEIAhINL2cvMTFiYzZ4bHBwZHIHCAESA01DWkABSAFwAYIBCwj___________8BmAEC&curr=MXN',
     'https://www.google.com/travel/flights/search?tfs=CBwQAhooEgoyMDI1LTA5LTI3ahEIAhINL2cvMTFiYzZ4bHBwZHIHCAESA01DWkABSAFwAYIBCwj___________8BmAEC&curr=MXN',
-    'https://www.google.com/travel/flights/search?tfs=CBwQAhooEgoyMDI1LTA5LTA2ahEIAhINL2cvMTFiYzZ4bHBwZHIHCAESA0pQQUABSAFwAYIBCwj___________8BmAEC&curr=MXN',
-    'https://www.google.com/travel/flights/search?tfs=CBwQAhooEgoyMDI1LTA5LTIwahEIAhINL2cvMTFiYzZ4bHBwZHIHCAESA0pQQUABSAFwAYIBCwj___________8BmAEC&curr=MXN'
+    'https://www.google.com/travel/flights/search?tfs=CBwQAhooEgoyMDI1LTA4LTE2ahEIAhINL2cvMTFiYzZ4bHBwZHIHCAESA01DWkABSAFwAYIBCwj___________8BmAEC&curr=MXN',
+    'https://www.google.com/travel/flights/search?tfs=CBwQAhooEgoyMDI1LTA4LTIzahEIAhINL2cvMTFiYzZ4bHBwZHIHCAESA01DWkABSAFwAYIBCwj___________8BmAEC&curr=MXN',
+    'https://www.google.com/travel/flights/search?tfs=CBwQAhooEgoyMDI1LTA4LTMwahEIAhINL2cvMTFiYzZ4bHBwZHIHCAESA01DWkABSAFwAYIBCwj___________8BmAEC&curr=MXN',
+    'https://www.google.com/travel/flights/search?tfs=CBwQAhooEgoyMDI1LTA5LTA2ahEIAhINL2cvMTFiYzZ4bHBwZHIHCAESA01DWkABSAFwAYIBCwj___________8BmAEC&curr=MXN',
+    'https://www.google.com/travel/flights/search?tfs=CBwQAhooEgoyMDI1LTA4LTMwahEIAhIKL20vMDljdjJiahEIAhINL2cvMTFiYzZ4bHBwZHIHCAESA01DWkABSAFwAYIBCwj___________8BmAEC&curr=MXN',
+    'https://www.google.com/travel/flights/search?tfs=CBwQAhooEgoyMDI1LTA5LTA2ahEIAhIKL20vMDljdjJiahEIAhINL2cvMTFiYzZ4bHBwZHIHCAESA01DWkABSAFwAYIBCwj___________8BmAEC&curr=MXN',
+    'https://www.google.com/travel/flights/search?tfs=CBwQAhooEgoyMDI1LTA5LTEzahEIAhIKL20vMDljdjJiahEIAhINL2cvMTFiYzZ4bHBwZHIHCAESA01DWkABSAFwAYIBCwj___________8BmAEC&curr=MXN'
   ],
   
   // Viewport máximo
@@ -345,8 +350,8 @@ const crawler = new PlaywrightCrawler({
         
         // Extraer información del vuelo y precio
         let flightPrice = 'No encontrado';
-        let fromCity = 'Florianópolis';
-        let toCity = 'Maceió';
+        let fromCity = 'Unknown';
+        let toCity = 'Unknown';
         let flightDate = 'No encontrado';
         
         try {
@@ -448,16 +453,24 @@ console.log('Iniciando crawler con configuración de Brasil...');
 console.log(`🖥️  Modo: ${isHeadless ? 'Headless (sin mostrar navegador)' : 'Con interfaz gráfica'}`);
 console.log(`📋 URLs a procesar: ${BRAZIL_CONFIG.urls.length}`);
 BRAZIL_CONFIG.urls.forEach((url, index) => {
+    let origin = 'Unknown';
     let destination = 'Unknown';
+    
     if (url.includes('MCZ')) destination = 'Maceió';
-    if (url.includes('JPA')) destination = 'João Pessoa';
+    
+    if (url.includes('/m/09cv2b')) origin = 'Mexico City';
+    else if (url.includes('/g/11bc6xlppd')) origin = 'Florianópolis';
     
     let date = 'Unknown';
+    if (url.includes('2025-08-16')) date = 'Aug 16';
+    if (url.includes('2025-08-23')) date = 'Aug 23';
+    if (url.includes('2025-08-30')) date = 'Aug 30';
     if (url.includes('2025-09-06')) date = 'Sep 6';
+    if (url.includes('2025-09-13')) date = 'Sep 13';
     if (url.includes('2025-09-27')) date = 'Sep 27';
     if (url.includes('2025-09-20')) date = 'Sep 20';
     
-    console.log(`   ${index + 1}. ${destination} - ${date}: ${url.substring(0, 100)}...`);
+    console.log(`   ${index + 1}. ${origin} → ${destination} - ${date}: ${url.substring(0, 100)}...`);
 });
 
 await crawler.run(BRAZIL_CONFIG.urls);
