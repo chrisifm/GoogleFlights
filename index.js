@@ -109,19 +109,19 @@ async function checkLowestPrice(from, to, currentPrice, currency, currentLink, f
             // Verificar si es el nuevo precio más bajo
             const isLowestPrice = currentPrice <= lowestPrice;
             
-            // Verificar si es al menos $500 MX más barato que el más caro
+            // Verificar si es al menos $200 MX más barato que el más caro
             const savingsFromHighest = highestPrice - currentPrice;
-            const significantSavings = savingsFromHighest >= 500;
+            const significantSavings = savingsFromHighest >= 200;
             
             console.log(`💸 Ahorro vs precio más alto: $${savingsFromHighest} MX`);
             
             if (isLowestPrice && significantSavings) {
                 console.log('🎉 ¡Nuevo precio más bajo detectado con ahorro significativo!');
-                console.log(`🚨 Enviando alerta: Es el más bajo Y ahorra +$500 MX vs el más caro`);
+                console.log(`🚨 Enviando alerta: Es el más bajo Y ahorra +$200 MX vs el más caro`);
                 await sendPriceAlert(from, to, currentPrice, currency, flightDate);
                 return true;
             } else if (isLowestPrice) {
-                console.log('📝 Es el precio más bajo, pero el ahorro vs el más caro es menor a $500 MX');
+                console.log('📝 Es el precio más bajo, pero el ahorro vs el más caro es menor a $200 MX');
             } else {
                 console.log('📝 No es el precio más bajo histórico');
             }
@@ -222,17 +222,24 @@ const BRAZIL_CONFIG = {
   // Configuración de idioma y región
   locale: 'pt-BR',
   
-  // URLs de Google Flights a comprobar
+  // URLs de Google Flights a comprobar - COMENTADAS (destinos anteriores)
   urls: [
-    'https://www.google.com/travel/flights/search?tfs=CBwQAhooEgoyMDI1LTA5LTA2ahEIAhINL2cvMTFiYzZ4bHBwZHIHCAESA01DWkABSAFwAYIBCwj___________8BmAEC&curr=MXN',
-    'https://www.google.com/travel/flights/search?tfs=CBwQAhooEgoyMDI1LTA5LTI3ahEIAhINL2cvMTFiYzZ4bHBwZHIHCAESA01DWkABSAFwAYIBCwj___________8BmAEC&curr=MXN',
-    'https://www.google.com/travel/flights/search?tfs=CBwQAhooEgoyMDI1LTA4LTE2ahEIAhINL2cvMTFiYzZ4bHBwZHIHCAESA01DWkABSAFwAYIBCwj___________8BmAEC&curr=MXN',
-    'https://www.google.com/travel/flights/search?tfs=CBwQAhooEgoyMDI1LTA4LTIzahEIAhINL2cvMTFiYzZ4bHBwZHIHCAESA01DWkABSAFwAYIBCwj___________8BmAEC&curr=MXN',
-    'https://www.google.com/travel/flights/search?tfs=CBwQAhooEgoyMDI1LTA4LTMwahEIAhINL2cvMTFiYzZ4bHBwZHIHCAESA01DWkABSAFwAYIBCwj___________8BmAEC&curr=MXN',
-    'https://www.google.com/travel/flights/search?tfs=CBwQAhooEgoyMDI1LTA5LTA2ahEIAhINL2cvMTFiYzZ4bHBwZHIHCAESA01DWkABSAFwAYIBCwj___________8BmAEC&curr=MXN',
-    'https://www.google.com/travel/flights/search?tfs=CBwQAhooEgoyMDI1LTA4LTMwahEIAhIKL20vMDljdjJiahEIAhINL2cvMTFiYzZ4bHBwZHIHCAESA01DWkABSAFwAYIBCwj___________8BmAEC&curr=MXN',
-    'https://www.google.com/travel/flights/search?tfs=CBwQAhooEgoyMDI1LTA5LTA2ahEIAhIKL20vMDljdjJiahEIAhINL2cvMTFiYzZ4bHBwZHIHCAESA01DWkABSAFwAYIBCwj___________8BmAEC&curr=MXN',
-    'https://www.google.com/travel/flights/search?tfs=CBwQAhooEgoyMDI1LTA5LTEzahEIAhIKL20vMDljdjJiahEIAhINL2cvMTFiYzZ4bHBwZHIHCAESA01DWkABSAFwAYIBCwj___________8BmAEC&curr=MXN'
+    // Destinos anteriores comentados
+    // 'https://www.google.com/travel/flights/search?tfs=CBwQAhooEgoyMDI1LTA5LTA2ahEIAhINL2cvMTFiYzZ4bHBwZHIHCAESA01DWkABSAFwAYIBCwj___________8BmAEC&curr=MXN',
+    // 'https://www.google.com/travel/flights/search?tfs=CBwQAhooEgoyMDI1LTA5LTI3ahEIAhINL2cvMTFiYzZ4bHBwZHIHCAESA01DWkABSAFwAYIBCwj___________8BmAEC&curr=MXN',
+    // 'https://www.google.com/travel/flights/search?tfs=CBwQAhooEgoyMDI1LTA4LTE2ahEIAhINL2cvMTFiYzZ4bHBwZHIHCAESA01DWkABSAFwAYIBCwj___________8BmAEC&curr=MXN',
+    // 'https://www.google.com/travel/flights/search?tfs=CBwQAhooEgoyMDI1LTA4LTIzahEIAhINL2cvMTFiYzZ4bHBwZHIHCAESA01DWkABSAFwAYIBCwj___________8BmAEC&curr=MXN',
+    // 'https://www.google.com/travel/flights/search?tfs=CBwQAhooEgoyMDI1LTA4LTMwahEIAhINL2cvMTFiYzZ4bHBwZHIHCAESA01DWkABSAFwAYIBCwj___________8BmAEC&curr=MXN',
+    // 'https://www.google.com/travel/flights/search?tfs=CBwQAhooEgoyMDI1LTA5LTA2ahEIAhINL2cvMTFiYzZ4bHBwZHIHCAESA01DWkABSAFwAYIBCwj___________8BmAEC&curr=MXN',
+    // 'https://www.google.com/travel/flights/search?tfs=CBwQAhooEgoyMDI1LTA4LTMwahEIAhIKL20vMDljdjJiahEIAhINL2cvMTFiYzZ4bHBwZHIHCAESA01DWkABSAFwAYIBCwj___________8BmAEC&curr=MXN',
+    // 'https://www.google.com/travel/flights/search?tfs=CBwQAhooEgoyMDI1LTA5LTA2ahEIAhIKL20vMDljdjJiahEIAhINL2cvMTFiYzZ4bHBwZHIHCAESA01DWkABSAFwAYIBCwj___________8BmAEC&curr=MXN',
+    // 'https://www.google.com/travel/flights/search?tfs=CBwQAhooEgoyMDI1LTA5LTEzahEIAhIKL20vMDljdjJiahEIAhINL2cvMTFiYzZ4bHBwZHIHCAESA01DWkABSAFwAYIBCwj___________8BmAEC&curr=MXN'
+    
+    // Nuevos destinos - Viernes 29 agosto 2025
+    // Florianópolis -> GIG (Rio de Janeiro - Galeão)
+    'https://www.google.com/travel/flights/search?tfs=CBwQAhooEgoyMDI1LTA4LTI5ahEIAhINL2cvMTFiYzZ4bHBwZHIHCAESA0dJR0ABSAFwAYIBCwj___________8BmAEC&curr=MXN',
+    // Florianópolis -> SDU (Rio de Janeiro - Santos Dumont)
+    'https://www.google.com/travel/flights/search?tfs=CBwQAhooEgoyMDI1LTA4LTI5ahEIAhINL2cvMTFiYzZ4bHBwZHIHCAESA1NESUABSAFwAYIBCwj___________8BmAEC&curr=MXN'
   ],
   
   // Viewport máximo
