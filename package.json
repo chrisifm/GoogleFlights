@@ -1,0 +1,26 @@
+{
+  "name": "google-flights-crawlee",
+  "version": "1.0.0",
+  "description": "Crawlee automation for Google Flights with Brazil configuration",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js"
+  },
+  "keywords": [
+    "crawlee",
+    "playwright",
+    "google-flights",
+    "automation",
+    "brasil"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.53.0",
+    "crawlee": "^3.14.0",
+    "dotenv": "^17.2.1",
+    "playwright": "^1.54.2"
+  }
+}
