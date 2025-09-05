@@ -19,7 +19,7 @@ export const CONFIG = {
   
   // Configuración del navegador
   BROWSER: {
-    headless: true,      // true = sin mostrar navegador, false = mostrar navegador
+    headless: false,      // true = sin mostrar navegador, false = mostrar navegador
     viewport: {
       width: 1280,
       height: 800

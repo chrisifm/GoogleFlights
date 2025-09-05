@@ -1,5 +1,6 @@
 import { runWebScraper } from './web_scraper.js';
-import { runPriceEvaluator, getHistoricalSummary, getNotificationsHistory } from './evaluate_price.js';
+import { runPriceEvaluator, getHistoricalSummary } from './evaluate_price.js';
+import { getNotificationsHistory } from './send_notifications.js';
 
 // Función principal que orquesta el flujo completo
 async function main() {
