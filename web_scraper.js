@@ -77,6 +77,77 @@ function validateFlightData(flightData) {
     return true;
 }
 
+// Función para resetear trabajos completed y processing a pending
+async function resetJobsToPending() {
+    try {
+        console.log('🔄 Reseteando trabajos completados y procesando a pendiente...');
+        
+        let totalReset = 0;
+        
+        // Resetear trabajos completed
+        const { data: completedData, error: completedError } = await supabase
+            .from('config_flights')
+            .update({ 
+                status: 'pending',
+                processing_instance_id: null,
+                processing_started_at: null,
+                updated_at: new Date().toISOString()
+            })
+            .eq('status', 'completed')
+            .select();
+        
+        if (completedError) {
+            console.error('❌ Error al resetear trabajos completed:', completedError.message);
+        } else {
+            const completedCount = completedData ? completedData.length : 0;
+            if (completedCount > 0) {
+                console.log(`✅ ${completedCount} trabajo(s) reseteado(s) de completed a pending`);
+                completedData.forEach(job => {
+                    console.log(`   • ${job.origin_city} → ${job.destination_city} (${job.flight_date})`);
+                });
+                totalReset += completedCount;
+            }
+        }
+        
+        // Resetear trabajos processing (posiblemente atascados)
+        const { data: processingData, error: processingError } = await supabase
+            .from('config_flights')
+            .update({ 
+                status: 'pending',
+                processing_instance_id: null,
+                processing_started_at: null,
+                updated_at: new Date().toISOString()
+            })
+            .eq('status', 'processing')
+            .select();
+        
+        if (processingError) {
+            console.error('❌ Error al resetear trabajos processing:', processingError.message);
+        } else {
+            const processingCount = processingData ? processingData.length : 0;
+            if (processingCount > 0) {
+                console.log(`✅ ${processingCount} trabajo(s) reseteado(s) de processing a pending`);
+                processingData.forEach(job => {
+                    console.log(`   • ${job.origin_city} → ${job.destination_city} (${job.flight_date})`);
+                });
+                totalReset += processingCount;
+            }
+        }
+        
+        if (totalReset === 0) {
+            console.log('📝 No hay trabajos para resetear');
+        } else {
+            console.log(`📊 Total de trabajos reseteados: ${totalReset}`);
+        }
+        
+        return totalReset;
+        
+    } catch (error) {
+        console.error('❌ Error crítico al resetear trabajos:', error.message);
+        return 0;
+    }
+}
+
 // Función para obtener y reclamar el próximo trabajo pendiente de forma atómica
 async function getNextPendingJob() {
     try {
@@ -94,6 +165,25 @@ async function getNextPendingJob() {
 
         if (!data || data.length === 0) {
             console.log('📭 No hay trabajos pendientes en este momento');
+            
+            // Resetear trabajos completed y processing a pending
+            const resetCount = await resetJobsToPending();
+            
+            if (resetCount > 0) {
+                console.log('🔄 Intentando reclamar uno de los trabajos reseteados...');
+                // Intentar reclamar uno de los trabajos recién reseteados
+                const { data: retryData, error: retryError } = await supabase.rpc('claim_next_pending_job', {
+                    p_instance_id: `${process.pid}-${Date.now()}`
+                });
+                
+                if (!retryError && retryData && retryData.length > 0) {
+                    const job = retryData[0];
+                    console.log(`✅ Trabajo reclamado después del reset: ${job.origin_city} → ${job.destination_city} (${job.flight_date})`);
+                    console.log(`🆔 Instance ID: ${job.processing_instance_id}`);
+                    return job;
+                }
+            }
+            
             return null;
         }
 
