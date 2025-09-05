@@ -43,9 +43,71 @@ async function logNotification(routeId, fromCity, toCity, flightDate, notificati
     }
 }
 
+// Función para verificar si se puede enviar notificación
+async function canSendNotification(from, to, flightDate, newPrice) {
+    try {
+        // Buscar la última notificación para esta ruta
+        const { data: lastNotification, error } = await supabase
+            .from('notifications')
+            .select('*')
+            .eq('from_city', from)
+            .eq('to_city', to)
+            .eq('flight_date', flightDate)
+            .order('notification_sent_at', { ascending: false })
+            .limit(1)
+            .single();
+
+        if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
+            console.error('Error al buscar última notificación:', error.message);
+            return true; // Por defecto, permitir envío si hay error
+        }
+
+        // Si no hay notificaciones previas, se puede enviar
+        if (!lastNotification) {
+            console.log('✅ Sin notificaciones previas para esta ruta');
+            return true;
+        }
+
+        // Verificar tiempo transcurrido desde última notificación
+        const lastSentTime = new Date(lastNotification.notification_sent_at);
+        const currentTime = new Date();
+        const hoursDiff = (currentTime - lastSentTime) / (1000 * 60 * 60);
+
+        console.log(`⏰ Última notificación enviada hace ${Math.round(hoursDiff * 10) / 10} horas`);
+
+        // Si han pasado menos de 12 horas
+        if (hoursDiff < 12) {
+            // Solo permitir si el precio es diferente al último enviado
+            if (lastNotification.new_price === newPrice) {
+                console.log(`❌ Bloqueo de notificación: Mismo precio ($${newPrice}) y menos de 12 horas (${Math.round(hoursDiff * 10) / 10}h)`);
+                return false;
+            } else {
+                console.log(`✅ Precio diferente ($${lastNotification.new_price} → $${newPrice}), se permite envío`);
+                return true;
+            }
+        }
+
+        // Si han pasado más de 12 horas, siempre permitir
+        console.log('✅ Han pasado más de 12 horas desde la última notificación');
+        return true;
+
+    } catch (error) {
+        console.error('Error crítico en canSendNotification:', error.message);
+        return true; // Por defecto, permitir envío si hay error
+    }
+}
+
 // Función para enviar alerta de precio bajo
 async function sendPriceAlert(from, to, currentPrice, currency, flightDate, reason = 'Precio bajo detectado', routeId = null, oldPrice = null, priceDrop = null) {
     try {
+        // Verificar si se puede enviar notificación
+        const canSend = await canSendNotification(from, to, flightDate, currentPrice);
+        
+        if (!canSend) {
+            console.log('🔕 Notificación bloqueada por reglas de frecuencia');
+            return false;
+        }
+
         const response = await fetch(CONFIG.ALERTS.PUSHCUT_URL, {
             method: 'POST',
             headers: {
